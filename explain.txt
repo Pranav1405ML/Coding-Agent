@@ -1,0 +1,23 @@
+# Project Explanation
+
+This project is an agent-based file management system. Its purpose is to provide an interface (via the `agent/tools.py` module) that allows an agent or automated system to perform basic filesystem operations safely.
+
+## Key Components
+
+### 1. File Management Tools (`agent/tools.py`)
+This file acts as the primary library for interacting with the filesystem. It exposes three main tools:
+
+- `read_file`: Reads a file's content. Includes safety checks for file existence, type (directory vs file), size limits (10,000 characters), and permissions.
+- `write_file`: Writes content to a file. It is designed with safety in mind: if a file already exists, it creates a `.backup` copy before overwriting.
+- `list_files`: Lists immediate files and directories in a given path. It does not recurse into subdirectories.
+
+### 2. Registry Pattern
+The `tools.py` file maintains a `TOOL_REGISTRY` dictionary. This registry maps human-readable tool names to their corresponding functions, descriptions, and parameter definitions. This is likely used by an LLM-based agent to understand how to invoke these functions.
+
+### 3. Architecture
+The project structure relies on the `agent/` directory containing the logic for the agent. The system assumes a fixed directory structure, anchoring its operations to the project root relative to the location of `tools.py`.
+
+## Safety Features
+- **Backups**: `write_file` automatically backs up existing files.
+- **Error Handling**: Functions include comprehensive `try/except` blocks to catch permission issues, encoding errors, and OS-level system errors, returning descriptive error messages rather than crashing.
+- **Constraints**: Size limits on reading prevent potential memory overflow or performance issues.
