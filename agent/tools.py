@@ -9,13 +9,12 @@ class AccessDeniedError(Exception):
 # A more robust fix would search upward for a known marker file (like .env) instead
 # of assuming a fixed folder depth.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BLOCKED_LIST = [
-    os.path.join(PROJECT_ROOT, ".env"),
-    os.path.join(PROJECT_ROOT, ".git"),
-    os.path.join(PROJECT_ROOT, "venv"),
-    os.path.join(PROJECT_ROOT, "__pycache__"),
-    os.path.join(PROJECT_ROOT, ".idea"),
-]
+
+BLOCKED_FOLDERS_RAW = [".git", "venv", "__pycache__", ".idea"]
+BLOCKED_FILES_RAW = [".env"]
+
+BLOCKED_LIST = [os.path.join(PROJECT_ROOT, name) for name in BLOCKED_FOLDERS_RAW + BLOCKED_FILES_RAW]
+BLOCKED_FOLDERS = BLOCKED_FOLDERS_RAW
 
 
 def read_file(path):
@@ -129,6 +128,46 @@ def list_files(folder_path):
         return f"Error: A system error occurred while reading the directory. {e}"
 
 
+def project_wide_search(content_to_search):
+    found_content = []
+    search_query = content_to_search.lower()
+
+    for root, dirs, files in os.walk(PROJECT_ROOT):
+        dirs[:] = [d for d in dirs if d not in BLOCKED_FOLDERS]
+        for file in files:
+            full_path = os.path.join(root, file)
+
+            try:
+                _check_permission(full_path)
+            except AccessDeniedError:
+                continue
+
+            try:
+                with open(full_path, "r") as f:
+                    for line_number, line in enumerate(f, start=1):
+                        if search_query in line.lower():
+                            found_content.append(f"Found {content_to_search} in {file} at line {line_number}.")
+
+            except FileNotFoundError:
+                found_content.append(f"Skipped: File vanished during scan: {file}")
+
+            except PermissionError as e:
+                found_content.append(f"You dont have permission to read {file} file. {e}")
+
+            except OSError as e:
+                found_content.append(f"System error reading file: {e}")
+
+            except MemoryError:
+                found_content.append(f"Skipped: {file} is too large to fit in memory.")
+
+            except UnicodeDecodeError as e:
+                found_content.append(f"Error: Encoding mismatch. Check the file format.{e}")
+
+    if len(found_content) == 0:
+        return f"{content_to_search} does not exist anywhere in this project"
+
+    return found_content
+
 # The underscore prefix on _raw_write is a Python convention, by the way —
 # it signals "this is an internal helper, not meant to be used directly from outside this file."
 def _raw_write(path, content):
@@ -171,6 +210,15 @@ TOOL_REGISTRY = {
         "function": list_files,
         "parameters": {
             "folder_path": "string - the folder path to list contents of"
+        }
+    },
+
+    "project_wide_search": {
+        "name": "project_wide_search",
+        "description": "Searches for a specific keyword or phrase (case-insensitive) across all permitted text files in the project workspace recursively and also reports line numbers",
+        "function": project_wide_search,
+        "parameters": {
+            "content_to_search": "string - the text keyword, phrase, or pattern to find inside the files"
         }
     }
 }

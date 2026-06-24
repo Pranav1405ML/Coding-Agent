@@ -24,17 +24,5 @@ all_tools = types.Tool(
     function_declarations=tool_declaration_list
 )
 
-# read_file_declaration = types.FunctionDeclaration(
-#     name="read_file",
-#     description="Reads the contents of a file at the given path. Returns an error message if the file doesn't exist, is too large, or isn't readable.",
-#     parameters={
-#         "type": "object",
-#         "properties": {
-#             "path": {
-#                 "type": "string",
-#                 "description": "the file path to read"
-#             }
-#         },
-#         "required": ["path"]
-#     }
-# )
+
+
