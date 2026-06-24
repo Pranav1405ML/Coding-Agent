@@ -1,21 +1,38 @@
 import os
 
+class AccessDeniedError(Exception):
+    pass
+
 # WARNING: This assumes tools.py always lives exactly one folder inside the project root
 # (i.e. project_root/agent/tools.py). If this file or the agent/ folder is ever moved
 # to a different depth, this calculation will silently point to the wrong location.
 # A more robust fix would search upward for a known marker file (like .env) instead
 # of assuming a fixed folder depth.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BLOCKED_LIST = [
+    os.path.join(PROJECT_ROOT, ".env"),
+    os.path.join(PROJECT_ROOT, ".git"),
+    os.path.join(PROJECT_ROOT, "venv"),
+    os.path.join(PROJECT_ROOT, "__pycache__"),
+    os.path.join(PROJECT_ROOT, ".idea"),
+]
+
 
 def read_file(path):
     full_path = os.path.join(PROJECT_ROOT, path)
-    char_limit = 10000
+
+    try:
+        _check_permission(full_path)
+    except AccessDeniedError as e:
+        return f"Error: {e}"
+
     if not os.path.exists(full_path):
         return "Error: The specified path does not exist."
 
     if not os.path.isfile(full_path):
         return "Error: The path points to a directory, not a readable file."
 
+    char_limit = 10000
     try:
         file_size_bytes = os.path.getsize(full_path)
 
@@ -42,6 +59,11 @@ def read_file(path):
 def write_file(write_path, content):
     overwrite = False
     full_path = os.path.join(PROJECT_ROOT, write_path)
+
+    try:
+        _check_permission(full_path)
+    except AccessDeniedError as e:
+        return f"Error: {e}"
 
     try:
         if os.path.exists(full_path):
@@ -71,6 +93,12 @@ def write_file(write_path, content):
 
 def list_files(folder_path):
     full_path = os.path.join(PROJECT_ROOT, folder_path)
+
+    try:
+        _check_permission(full_path)
+    except AccessDeniedError as e:
+        return f"Error: {e}"
+
     if not os.path.exists(full_path):
         return "Error: The specified path does not exist."
 
@@ -108,8 +136,14 @@ def _raw_write(path, content):
         f.write(content)
 
 def _raw_read(path):
-    with open(path, "w") as f:
+    with open(path, "r") as f:
         return f.read()
+
+def _check_permission(path):
+    for blocked in BLOCKED_LIST:
+        if path == blocked or path.startswith(blocked + os.sep): # without os.sep, "venv2".startswith("venv") is True as a pure string comparison, even though venv2 is a completely unrelated folder
+            raise AccessDeniedError(f"Access to {path} is restricted.")
+
 
 TOOL_REGISTRY = {
     "read_file": {
