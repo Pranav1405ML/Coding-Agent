@@ -13,7 +13,6 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 def send_message(history: list, user_message: str) -> tuple:
     temp_history = history + [{"role": "user", "parts": [{"text": user_message}]}]
 
-
     while True:
         try:
             response = client.models.generate_content(
@@ -46,6 +45,4 @@ def send_message(history: list, user_message: str) -> tuple:
             temp_history.append({"role": "model", "parts": [{"text": response.text}]})
             history = temp_history
             return response.text, history
-
-
 

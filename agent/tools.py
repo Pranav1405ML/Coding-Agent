@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 class AccessDeniedError(Exception):
     pass
@@ -15,6 +16,12 @@ BLOCKED_FILES_RAW = [".env"]
 
 BLOCKED_LIST = [os.path.join(PROJECT_ROOT, name) for name in BLOCKED_FOLDERS_RAW + BLOCKED_FILES_RAW]
 BLOCKED_FOLDERS = BLOCKED_FOLDERS_RAW
+
+ALLOWED_EXECUTION_COMMANDS = ["pytest"]
+ALLOWED_INFO_COMMANDS = ["git status", "git log", "git diff"]
+
+TIER_INFO = "info"
+TIER_EXECUTION = "execution"
 
 
 def read_file(path):
@@ -168,6 +175,35 @@ def project_wide_search(content_to_search):
 
     return found_content
 
+
+def run_command(command):
+    command_list = command.split()
+    allowed, tier, valid_path = _is_allowed(command_list)
+
+    if not allowed:
+        return f"You do not have permission to run this command."
+
+    try:
+        if tier == TIER_INFO:
+            return _command_output(command_list)
+
+        elif tier == TIER_EXECUTION:
+            content = _raw_read(valid_path)
+            print()
+            print(content)
+            print()
+            choice = input("Do you want to give the permission to agent to run this file? [Y/N]:")
+            if choice.lower() == "y":
+                return _command_output(command_list)
+            else:
+                return f"User did not give permission to run this file."
+
+    except subprocess.TimeoutExpired as e:
+        return f"This process was killed as it took more than 10 second to respond."
+
+    except Exception as e:
+        return f"Unexpected error occurred. {e}"
+
 # The underscore prefix on _raw_write is a Python convention, by the way —
 # it signals "this is an internal helper, not meant to be used directly from outside this file."
 def _raw_write(path, content):
@@ -183,6 +219,33 @@ def _check_permission(path):
         if path == blocked or path.startswith(blocked + os.sep): # without os.sep, "venv2".startswith("venv") is True as a pure string comparison, even though venv2 is a completely unrelated folder
             raise AccessDeniedError(f"Access to {path} is restricted.")
 
+def _is_allowed(command_list):
+    joined = " ".join(command_list)
+    if joined in ALLOWED_INFO_COMMANDS:
+        return True, TIER_INFO, None
+
+    elif len(command_list) == 2 and command_list[0] in ALLOWED_EXECUTION_COMMANDS:
+        abs_target_path = os.path.join(PROJECT_ROOT, command_list[1])
+
+        if os.path.exists(abs_target_path) and abs_target_path.startswith(PROJECT_ROOT + os.sep):
+                try:
+                    _check_permission(abs_target_path)
+                    return True, TIER_EXECUTION, abs_target_path
+
+                except AccessDeniedError:
+                    return False, None, None
+    return False, None, None
+
+def _command_output(command_list):
+    result = subprocess.run(
+        command_list,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        cwd=PROJECT_ROOT
+    )
+    output = f"Output: {result.stdout}\nError: {result.stderr}\nReturn Code: {result.returncode}\n"
+    return output
 
 TOOL_REGISTRY = {
     "read_file": {
@@ -220,6 +283,31 @@ TOOL_REGISTRY = {
         "parameters": {
             "content_to_search": "string - the text keyword, phrase, or pattern to find inside the files"
         }
+    },
+
+"run_command": {
+    "name": "run_command",
+    "description": (
+        "Executes a single allowed command from a restricted allowlist [git status, git log, git diff, pytest]"
+        "and returns its standard output or error output. This tool should be used only when runtime "
+        "information is required and cannot be determined by reading project files alone. "
+        "Supported informational commands (such as safe Git status, log, and diff operations) execute "
+        "immediately. Commands that execute project code or tests (such as pytest on an allowed file) "
+        "require explicit human approval before execution. The tool automatically rejects any command "
+        "outside the allowlist and enforces a timeout to prevent indefinitely running processes. "
+        "Typical use cases include checking repository status, viewing commit history, verifying code "
+        "changes with tests, observing runtime errors, debugging failing test cases, and validating "
+        "whether recent modifications behave as expected."
+    ),
+    "function": run_command,
+    "parameters": {
+        "command": (
+            "string - A single command to execute exactly as it would be typed in the terminal. "
+            "The command must belong to the allowed command set (for example, safe git commands "
+            "or approved pytest invocations)."
+        )
     }
+   }
+
 }
 

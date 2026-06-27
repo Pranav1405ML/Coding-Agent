@@ -1,0 +1,5 @@
+# DESIGN NOTES : run_command (decided across full session):
+# - Allowlist only: pytest, git status, git log, git diff
+# - git commands: run freely, no approval (read-only by nature)
+# - pytest: requires showing actual file content from disk + explicit human approval before running
+# - Timeout enforced as backup safety net underneath approval
