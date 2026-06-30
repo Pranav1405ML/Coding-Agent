@@ -21,5 +21,3 @@ except KeyboardInterrupt:
     print("\n\nChat ended by user. Goodbye!")
 
 
-# You: list the files in the agent folder, then read tools.py, write a explain.txt for this project
-

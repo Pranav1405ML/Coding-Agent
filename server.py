@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from agent.chat import send_message
+from database import init_db, save_message, load_history
 
 app = FastAPI()
 
@@ -12,11 +13,16 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 def chat(request : ChatRequest):
-    if request.user_id not in all_histories:
-        all_histories[request.user_id] = []
-
-    history = all_histories[request.user_id]
+    init_db()
+    history = load_history(request.user_id)
+    old_hist_length = len(history)
     response_text, updated_history = send_message(history, request.message)
-    all_histories[request.user_id] = updated_history
+
+    for row in updated_history[old_hist_length : ]:
+        role = row["role"]
+        content = row["parts"]
+        saved, trace = save_message(request.user_id, role, content)
+        if not saved:
+            return {"response": response_text, "Error": trace}
 
     return {"response": response_text}
