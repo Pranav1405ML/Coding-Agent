@@ -2,32 +2,39 @@ import os
 from agent.chat import send_message
 from agent.config import set_project_root
 
+api_key = os.getenv("GEMINI_API_KEY")
 
-message, success = set_project_root(os.getcwd())
-if not success:
-    print(message)
+if not api_key:
+    print("Error: GEMINI_API_KEY environment variable not set. Please set it before running the agent.")
 
 else:
-    history = []
-    print(message)
-    print(f"Workspace: {os.getcwd()}")
-    print("Chat started. Type 'exit' to quit.\n")
+    print("Success: GEMINI_API_KEY environment variable has been set.")
 
-    try:
-        while True:
-            user_input = input("You: ")
+    message, success = set_project_root(os.getcwd())
+    if not success:
+        print(message)
 
-            if user_input.strip() == "":
-                print("(empty message, try again)")
-                continue
+    else:
+        history = []
+        print(message)
+        print(f"Workspace: {os.getcwd()}")
+        print("Chat started. Type 'exit' to quit.\n")
 
-            if user_input.lower() == "exit":
-                break
+        try:
+            while True:
+                user_input = input("You: ")
 
-            response_text, history = send_message(history, user_input)
-            print(f"Gemini: {response_text}")
+                if user_input.strip() == "":
+                    print("(empty message, try again)")
+                    continue
 
-    except KeyboardInterrupt:
-        print("\n\nChat ended by user. Goodbye!")
+                if user_input.lower() == "exit":
+                    break
+
+                response_text, history = send_message(history, user_input)
+                print(f"Gemini: {response_text}")
+
+        except KeyboardInterrupt:
+            print("\n\nChat ended by user. Goodbye!")
 
 

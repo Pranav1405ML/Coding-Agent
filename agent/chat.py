@@ -1,21 +1,24 @@
-from dotenv import load_dotenv
 from google import genai
 from agent.tool_declarations import all_tools
 from agent.tools import TOOL_REGISTRY
 from google.genai import types
 import os
 
-# Load the .env file so Python can access your API key
-load_dotenv()
+client = None
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+def get_client():
+    global client
+    if client is None:
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return client
+
 
 def send_message(history: list, user_message: str) -> tuple:
     temp_history = history + [{"role": "user", "parts": [{"text": user_message}]}]
 
     while True:
         try:
-            response = client.models.generate_content(
+            response = get_client().models.generate_content(
                 model="gemini-3.1-flash-lite",
                 contents=temp_history,
                 config=types.GenerateContentConfig(
