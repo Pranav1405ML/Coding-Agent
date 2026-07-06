@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-cody"
+version = "0.1.0"
+description = "A powerful CLI coding agent that can read and writes files, understand codebases, perform project wide searches, write code, test it and run a set of safe and allowed commands."
+authors = [
+    { name = "Pranav Ganesh" }
+]
+dependencies = [
+    "google-genai>=1.0.0",
+]
+
+[project.scripts]
+myagent = "agent.cli:run"
