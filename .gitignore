@@ -3,4 +3,4 @@ chat_history.db
 venv/
 __pycache__/
 .idea/
- agent_cody.egg-info/
+agent_cody.egg-info/
