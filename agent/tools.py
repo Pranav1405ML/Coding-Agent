@@ -11,6 +11,8 @@ ALLOWED_INFO_COMMANDS = ["git status", "git log", "git diff"]
 TIER_INFO = "info"
 TIER_EXECUTION = "execution"
 
+_image_built = False
+
 def read_file(path):
     project_root, isvalid = _get_verified_root()
 
@@ -191,6 +193,10 @@ def project_wide_search(content_to_search):
 
 
 def run_command(command):
+    project_root, ok = _get_verified_root()
+    if not ok:
+        return project_root  # this is the error string in the failure case
+
     command_list = command.split()
     allowed, tier, valid_path = _is_allowed(command_list)
 
@@ -199,7 +205,7 @@ def run_command(command):
 
     try:
         if tier == TIER_INFO:
-            return _command_output(command_list)
+            return _command_output(command_list, tier, project_root)
 
         elif tier == TIER_EXECUTION:
             content = _raw_read(valid_path)
@@ -208,7 +214,7 @@ def run_command(command):
             print()
             choice = input("Do you want to give the permission to agent to run this file? [Y/N]:")
             if choice.lower() == "y":
-                return _command_output(command_list)
+                return _command_output(command_list, tier, project_root)
             else:
                 return f"User did not give permission to run this file."
 
@@ -263,21 +269,65 @@ def _is_allowed(command_list):
                     return False, None, None
     return False, None, None
 
-def _command_output(command_list):
-    project_root, isvalid = _get_verified_root()
+def _command_output(command_list, tier, project_root):
+    if tier == TIER_EXECUTION:
+        built, error = _ensure_image_built()
+        if not built:
+            return error
 
-    if not isvalid:
-        return project_root
+        docker_command = [
+            "docker", "run", "--rm",
+            "-v", f"{project_root}:/workspace",
+            "-w", "/workspace",
+            "agent-cody-sandbox",
+            *command_list
+        ]
 
-    result = subprocess.run(
-        command_list,
-        capture_output=True,
-        text=True,
-        timeout=10,
-        cwd=project_root
-    )
-    output = f"Output: {result.stdout}\nError: {result.stderr}\nReturn Code: {result.returncode}\n"
-    return output
+        try:
+            result = subprocess.run(
+                docker_command,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return f"Output: {result.stdout}\nError: {result.stderr}\nReturn Code: {result.returncode}\n"
+        except subprocess.TimeoutExpired:
+            return "Error: Command timed out."
+
+    else:
+        result = subprocess.run(
+            command_list,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=project_root
+        )
+        return f"Output: {result.stdout}\nError: {result.stderr}\nReturn Code: {result.returncode}\n"
+
+def _ensure_image_built():
+    global _image_built
+    if _image_built:
+        return True, None
+
+    dockerfile_dir = os.path.dirname(os.path.abspath(__file__))
+
+    try:
+        result = subprocess.run(
+            ["docker", "build", "-t", "agent-cody-sandbox", dockerfile_dir],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        if result.returncode != 0:
+            return False, f"Docker build failed: {result.stderr}"
+
+        _image_built = True
+        return True, None
+
+    except FileNotFoundError:
+        return False, "Docker is not installed or not found on this system. Execution-tier commands require Docker."
+    except subprocess.TimeoutExpired:
+        return False, "Docker build timed out."
 
 def _get_verified_root():
     try:
