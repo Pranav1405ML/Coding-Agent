@@ -24,7 +24,8 @@ def run():
 
     try:
         while True:
-            user_input = input("You: ")
+            print()
+            user_input = input("\033[96mYou: \033[0m")
 
             if user_input.strip() == "":
                 print("(empty message, try again)")
@@ -34,7 +35,8 @@ def run():
                 break
 
             response_text, history = send_message(history, user_input)
-            print(f"Gemini: {response_text}")
+            print()
+            print(f"\033[96mGemini: \033[0m{response_text}")
 
     except KeyboardInterrupt:
         print("\n\nChat ended by user. Goodbye!")
