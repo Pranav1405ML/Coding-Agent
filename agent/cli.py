@@ -36,7 +36,7 @@ def run():
 
             response_text, history = send_message(history, user_input)
             print()
-            print(f"\033[96mGemini: \033[0m{response_text}")
+            print(f"\033[96mAgent Cody: \033[0m{response_text}")
 
     except KeyboardInterrupt:
         print("\n\nChat ended by user. Goodbye!")
