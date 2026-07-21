@@ -76,10 +76,18 @@ Type `exit` or press `Ctrl+C` to end the session.
 - Blocked paths: `.env`, `.git`, `venv`, `__pycache__`, `.idea` are never readable or writable by the agent.
 - Command execution uses a strict allowlist. Info commands (`git status`, `git log`, `git diff`) run directly on your machine, read-only; execution commands (`pytest`) require explicit human approval, with the target file's contents shown before you approve.
 - Execution-tier commands run inside a **disposable Docker container**, not on your host machine. Each run spins up a fresh, isolated container (built from a custom image with `pytest` pre-installed), mounts only your project folder into it, executes the command, then destroys the container immediately after. Your real project files are visible to the command, but nothing else on your machine is.
+
 ## Development
  
 This project was built as a mentorship-driven learning exercise, prioritizing understanding fundamentals (APIs, tool calling, agent architecture, packaging) over speed. See commit history for the full build journey.
- 
+
+## Limitations
+
+- A file with more than 100k characters (roughtly >1000 lines of code) might not be readable for the agent.
+- This decision was made to preserve the tokens and to use the api limits efficiently.
+- The agent cant run any other commands than the ones explicitly allowed (mentioned above).
+- The agent cannot run tests without docker being installed on the system.
+
 ## License
  
 MIT
